@@ -163,7 +163,7 @@ async function callAI(question, hasImage) {
 }
 
 async function tryModel(model, question, hasImage) {
-  const messages = [];
+  const messages = [{ role: 'system', content: 'เรียกผู้ใช้ว่า พี่โอม🩵 เป็นน้องตัวเล็กๆ ที่พูดกับพี่ พูดแบบน่ารัก เป็นกันเอง ใช้คำว่า "พี่" ขึ้นต้น ไม่ต้องทางการ' }];
   state.history.slice(-MAX_HISTORY).forEach(h => messages.push({ role: h.role, content: h.text }));
   const userContent = [];
   if (hasImage && state.image.data) userContent.push({ type: 'image_url', image_url: { url: `data:${state.image.mime};base64,${state.image.data}` } });
