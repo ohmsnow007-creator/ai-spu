@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Memo - บันทึกส่วนตัว</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="chat-header">
+  <h1>memo<span>.</span></h1>
+  <span id="timerDisplay"></span>
+  <button id="apiBtn">🔑</button>
+</div>
+
+<div id="chatContainer"></div>
+
+<div class="quick-row" id="quickRow">
+  <button class="quick-btn" data-action="summarize">📝 สรุป</button>
+  <button class="quick-btn" data-action="quiz">📋 ข้อสอบ</button>
+  <button class="quick-btn" data-action="flashcard">🔖 Flashcards</button>
+  <button class="quick-btn" data-action="choices">🔘 เฉลยช้อย</button>
+  <button class="quick-btn" data-action="clear">🗑️ ล้าง</button>
+</div>
+<div class="input-bar">
+  <div class="input-wrap">
+    <div class="image-preview-bar" id="imagePreviewBar">
+      <img id="previewThumb" src="" alt="">
+      <span id="previewName"></span>
+      <button class="remove-img" id="removeImgBtn">✕</button>
+    </div>
+    <div class="input-row">
+      <button id="fileBtn">📷</button>
+      <input type="text" id="questionInput" placeholder="พิมพ์..." autocomplete="off">
+      <button id="sendBtn">➤</button>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*" style="display:none">
+</div>
+
+<div class="api-toast" id="apiToast">
+  <button class="close-toast" id="closeToast">✕</button>
+  <h3>API Key</h3>
+  <input type="text" id="apiKeyInput" placeholder="ใส่ OpenRouter API Key">
+  <div class="helper">สมัครฟรีที่ <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></div>
+  <button class="btn-save" id="saveApiKey">บันทึก</button>
+</div>
+
+<div id="stealthOverlay">
+  <div class="icon">📝</div>
+  <div class="label">Memo</div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
