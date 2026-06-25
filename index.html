@@ -32,12 +32,13 @@
       <button class="remove-img" id="removeImgBtn">✕</button>
     </div>
     <div class="input-row">
-      <button id="fileBtn">📷</button>
+      <button id="fileBtn" type="button">📷
+        <input type="file" id="fileInput" accept="image/*,application/pdf" capture="environment">
+      </button>
       <input type="text" id="questionInput" placeholder="พิมพ์คำถาม หรืออัปโหลดรูปเพื่อเรียน..." autocomplete="off">
       <button id="sendBtn">➤</button>
     </div>
   </div>
-  <input type="file" id="fileInput" accept="image/*,application/pdf" style="display:none">
 </div>
 
 <div id="stealthOverlay">

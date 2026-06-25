@@ -288,7 +288,7 @@ function handleImage(file) {
     previewThumb.src = e.target.result;
     previewName.textContent = file.name;
     previewBar.classList.add('show');
-    setTimeout(() => sendMessage(), 300);
+    sendMessage();
   };
   reader.readAsDataURL(file);
 }
@@ -378,7 +378,7 @@ async function handlePdf(file) {
     previewName.textContent = file.name + ` (${state.pdfText.length} chars)`;
     previewThumb.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmQ3MDAiIHN0cm9rZS13aWR0aD0iMiI+PHJlY3QgeD0iMyIgeT0iMiIgd2lkdGg9IjE4IiBoZWlnaHQ9IjIwIiByeD0iMiIvPjxsaW5lIHg9IjciIHk9IjYiIHgyPSIxNyIgeT0iNiIvPjxsaW5lIHg9IjciIHk9IjEwIiB4Mj0iMTciIHk9IjEwIi8+PGxpbmUgeD0iNyIgeT0iMTQiIHgyPSIxNyIgeT0iMTQiLz48L3N2Zz4=';
     previewBar.classList.add('show');
-    setTimeout(() => sendMessage(), 300);
+    sendMessage();
   } catch (e) {
     addMessage('ai', 'อ่าน PDF ไม่สำเร็จ: ' + e.message);
   }
@@ -407,7 +407,6 @@ document.addEventListener('click', (e) => {
 
 sendBtn.addEventListener('click', () => sendMessage());
 input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
-fileBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => handleImage(e.target.files[0]));
 removeImgBtn.addEventListener('click', clearImage);
 $('menuToggle').addEventListener('click', showHistoryPanel);
