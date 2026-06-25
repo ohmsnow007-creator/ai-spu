@@ -397,9 +397,9 @@ async function sendMessage(overrideText) {
 
 function handleImage(file) {
   if (!file) return;
-  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf'];
-  if (file.type === 'application/pdf') return handlePdf(file);
-  if (!validTypes.includes(file.type) && !file.type.startsWith('image/')) {
+  let mime = file.type || 'image/jpeg';
+  if (mime === 'application/pdf') return handlePdf(file);
+  if (!mime.startsWith('image/')) {
     addMessage('ai', '⚠️ รองรับเฉพาะไฟล์รูปภาพ (JPG, PNG, GIF, WebP) และ PDF เท่านั้น');
     return;
   }
@@ -409,7 +409,7 @@ function handleImage(file) {
   reader.onload = (e) => {
     const data = e.target.result.split(',')[1];
     if (data.length > 15 * 1024 * 1024) { addMessage('ai', '⚠️ รูปมีความละเอียดสูงเกินไป กรุณาลดขนาดก่อน'); return; }
-    state.image = { data, name: file.name, mime: file.type };
+    state.image = { data, name: file.name, mime: mime };
     state.imgVer++;
     previewThumb.src = e.target.result;
     previewName.textContent = file.name;
@@ -521,7 +521,9 @@ function toggleVideo() {
 
 sendBtn.addEventListener('click', () => sendMessage());
 input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
-fileInput.addEventListener('change', (e) => handleImage(e.target.files[0]));
+$('fileBtn').addEventListener('click', () => fileInput.click());
+$('fileBtn').addEventListener('touchend', (e) => { e.preventDefault(); fileInput.click(); });
+fileInput.addEventListener('change', (e) => { handleImage(e.target.files[0]); fileInput.value = ''; });
 removeImgBtn.addEventListener('click', clearImage);
 
 let tapCount = 0, tapTimer = null;

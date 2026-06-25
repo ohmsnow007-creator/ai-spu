@@ -32,9 +32,8 @@
       <button class="remove-img" id="removeImgBtn">✕</button>
     </div>
     <div class="input-row">
-      <label id="fileBtn" tabindex="0">📷
-        <input type="file" id="fileInput" accept="image/*,application/pdf">
-      </label>
+      <button id="fileBtn" type="button">📷</button>
+      <input type="file" id="fileInput" accept="image/*,application/pdf" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">
       <input type="text" id="questionInput" placeholder="พิมพ์คำถาม หรืออัปโหลดรูปเพื่อเรียน..." autocomplete="off">
       <button id="sendBtn">➤</button>
     </div>
