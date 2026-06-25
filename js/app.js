@@ -9,43 +9,32 @@ const state = {
   pdfText: '',
   messages: safeParse('chat_history', []),
   history: safeParse('ai_history', []),
-  timestamp: parseInt(localStorage.getItem('chat_timestamp') || '0') || Date.now(),
   msgId: 0,
-  stealth: false
+  stealth: false,
+  imgVer: 0
 };
-const EXPIRY_MS = 3600000;
 const MAX_HISTORY = 20;
 
 const $ = id => document.getElementById(id);
 const chatContainer = $('chatContainer');
 const input = $('questionInput');
 const sendBtn = $('sendBtn');
-const fileBtn = $('fileBtn');
 const fileInput = $('fileInput');
 const previewBar = $('imagePreviewBar');
 const previewThumb = $('previewThumb');
 const previewName = $('previewName');
 const removeImgBtn = $('removeImgBtn');
-const timerDisplay = $('timerDisplay');
+const clearHistoryBtn = $('clearHistoryBtn');
 const stealthOverlay = $('stealthOverlay');
 const historyPanel = $('historyPanel');
 const historyList = $('historyList');
 
-function checkExpiry() {
-  if (Date.now() - state.timestamp > EXPIRY_MS) {
-    state.messages = []; state.history = []; state.timestamp = Date.now();
-    localStorage.setItem('chat_history', '[]');
-    localStorage.setItem('ai_history', '[]');
-    localStorage.setItem('chat_timestamp', String(state.timestamp));
-    renderMessages();
-  }
-}
-function updateTimer() {
-  const remaining = Math.max(0, EXPIRY_MS - (Date.now() - state.timestamp));
-  const m = Math.floor(remaining / 60000);
-  const s = Math.floor((remaining % 60000) / 1000);
-  timerDisplay.textContent = `${m}:${String(s).padStart(2,'0')}`;
-  if (remaining <= 0) checkExpiry();
+function clearHistory() {
+  if (!confirm('ลบประวัติการสนทนาทั้งหมด?')) return;
+  state.messages = []; state.history = []; state.msgId = 0; state.imgVer = 0;
+  localStorage.setItem('chat_history', '[]');
+  localStorage.setItem('ai_history', '[]');
+  renderMessages();
 }
 
 function renderMessages() {
@@ -104,7 +93,6 @@ function saveMessages() {
   try {
     const toSave = state.messages.filter(m => !m.loading).slice(-30);
     localStorage.setItem('chat_history', JSON.stringify(toSave));
-    localStorage.setItem('chat_timestamp', String(state.timestamp));
   } catch (e) {
     if (e.name === 'QuotaExceededError' || e.code === 22) {
       state.messages = state.messages.filter(m => !m.loading).slice(-10);
@@ -128,8 +116,9 @@ const FREE_MODELS = [
 ];
 const FREE_MODELS_VISION = [
   'google/gemma-4-31b-it:free',
-  'qwen/qwen2.5-vl-72b-instruct:free',
-  'meta-llama/llama-3.2-90b-vision-instruct:free',
+  'qwen/qwen2.5-vl-32b-instruct:free',
+  'nvidia/nemotron-nano-12b-v2-vl:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
 ];
 
 async function callAI(question, hasImage, imgData) {
@@ -235,6 +224,7 @@ async function sendMessage(overrideText) {
   state.messages.push(aiMsg);
   renderMessages();
 
+  const sentVer = state.imgVer;
   let prompt = text;
   if (hasPdf) {
     if (!prompt) prompt = 'สรุปเนื้อหาจากเอกสารนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน';
@@ -258,7 +248,7 @@ async function sendMessage(overrideText) {
       saveMessages();
       renderMessages();
     }
-    clearImage();
+    if (state.imgVer === sentVer) clearImage();
   } catch (err) {
     const idx = state.messages.findIndex(m => m.id === id + '-ai');
     if (idx !== -1) {
@@ -285,6 +275,7 @@ function handleImage(file) {
     const data = e.target.result.split(',')[1];
     if (data.length > 15 * 1024 * 1024) { addMessage('ai', '⚠️ รูปมีความละเอียดสูงเกินไป กรุณาลดขนาดก่อน'); return; }
     state.image = { data, name: file.name, mime: file.type };
+    state.imgVer++;
     previewThumb.src = e.target.result;
     previewName.textContent = file.name;
     previewBar.classList.add('show');
@@ -371,7 +362,6 @@ async function handlePdf(file) {
   if (file.size > 20 * 1024 * 1024) {
     addMessage('ai', 'PDF ใหญ่เกินไป (จำกัด 20MB)'); return;
   }
-  addMessage('ai', '📄 กำลังอ่าน PDF...');
   try {
     state.pdfText = await extractPdfText(file);
     state.image = { data: '', name: file.name, mime: 'application/pdf' };
@@ -412,12 +402,12 @@ removeImgBtn.addEventListener('click', clearImage);
 $('menuToggle').addEventListener('click', showHistoryPanel);
 $('closePanel').addEventListener('click', hideHistoryPanel);
 $('newChatBtn').addEventListener('click', () => {
-  state.messages = []; state.history = []; state.timestamp = Date.now(); state.msgId = 0;
+  state.messages = []; state.history = []; state.msgId = 0; state.imgVer = 0;
   localStorage.setItem('chat_history', '[]');
   localStorage.setItem('ai_history', '[]');
-  localStorage.setItem('chat_timestamp', String(state.timestamp));
   renderMessages();
 });
+clearHistoryBtn.addEventListener('click', clearHistory);
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', (e) => { e.preventDefault(); if (e.dataTransfer.files[0]) handleImage(e.dataTransfer.files[0]); });
 setTimeout(() => input.focus(), 500);
@@ -428,17 +418,19 @@ window.addEventListener('resize', () => {
   if (lastHeight > h) setTimeout(scrollToBottom, 300);
   lastHeight = h;
 });
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    if (window.visualViewport.height < window.innerHeight) setTimeout(scrollToBottom, 400);
+  });
+}
 
 try {
-  checkExpiry(); renderMessages();
+  renderMessages();
 } catch (e) {
-  state.messages = []; state.history = []; state.timestamp = Date.now();
+  state.messages = []; state.history = [];
   try {
     localStorage.setItem('chat_history', '[]');
     localStorage.setItem('ai_history', '[]');
-    localStorage.setItem('chat_timestamp', String(state.timestamp));
   } catch {}
   renderMessages();
 }
-setInterval(updateTimer, 1000);
-updateTimer();
