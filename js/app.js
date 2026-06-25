@@ -1,20 +1,23 @@
-function getApiKey() {
-  let k = localStorage.getItem('openrouter_key');
-  if (k) return k;
-  const c = document.cookie.split(';').map(s => s.trim()).find(r => r.startsWith('openrouter_key='));
-  return c ? decodeURIComponent(c.split('=')[1]) : '';
+// โหลดคีย์จากไฟล์ api-key.txt (แก้ไขไฟล์นี้ได้เลย ไม่ต้องแก้โค้ด)
+let API_KEY = '';
+async function loadApiKey() {
+  try {
+    const res = await fetch('api-key.txt');
+    API_KEY = (await res.text()).trim();
+  } catch (e) {
+    console.error('โหลด api-key.txt ไม่สำเร็จ:', e);
+  }
 }
-function setApiKey(k) {
-  localStorage.setItem('openrouter_key', k);
-  document.cookie = `openrouter_key=${encodeURIComponent(k)}; path=/; max-age=31536000; SameSite=Lax`;
-}
+function getApiKey() { return API_KEY; }
+
 function safeParse(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
 }
 
 const state = {
-  apiKey: getApiKey(),
+  apiKey: API_KEY,
   image: { data: '', name: '', mime: '' },
+  pdfText: '',
   messages: safeParse('chat_history', []),
   history: safeParse('ai_history', []),
   timestamp: parseInt(localStorage.getItem('chat_timestamp') || '0') || Date.now(),
@@ -34,11 +37,6 @@ const previewBar = $('imagePreviewBar');
 const previewThumb = $('previewThumb');
 const previewName = $('previewName');
 const removeImgBtn = $('removeImgBtn');
-const apiBtn = $('apiBtn');
-const apiToast = $('apiToast');
-const apiKeyInput = $('apiKeyInput');
-const saveApiKey = $('saveApiKey');
-const closeToast = $('closeToast');
 const timerDisplay = $('timerDisplay');
 const stealthOverlay = $('stealthOverlay');
 
@@ -77,7 +75,8 @@ function renderMessages() {
       div.appendChild(img);
     }
     const text = document.createElement('div');
-    text.textContent = m.text;
+    text.className = 'md-body';
+    text.innerHTML = renderMarkdown(m.text);
     div.appendChild(text);
     if (m.choices) {
       const wrap = document.createElement('div');
@@ -134,44 +133,64 @@ function hideTyping() {
   if (el) el.remove();
 }
 
+// โมเดลที่ทดสอบแล้วตอบกลับได้จริงด้วยคีย์นี้
+// หมายเหตุ: บางโมเดล rate-limit ชั่วคราว จึงมี retry อัตโนมัติ
 const FREE_MODELS = [
   'google/gemma-4-31b-it:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'nvidia/nemotron-nano-12b-v2-vl:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
   'openai/gpt-oss-120b:free',
-  'qwen/qwen3-coder:free'
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'qwen/qwen3-coder:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
 ];
+// Vision: gemma-31b รองรับรูป + ตอบไทยได้
 const FREE_MODELS_VISION = [
   'google/gemma-4-31b-it:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'nvidia/nemotron-nano-12b-v2-vl:free'
 ];
 
 async function callAI(question, hasImage) {
-  if (!state.apiKey) throw new Error('NO_KEY');
+  const apiKey = getApiKey();
+  if (!apiKey || !apiKey.startsWith('sk-or-v1-')) {
+    throw new Error('API Key ไม่ถูกต้อง');
+  }
   const models = hasImage ? FREE_MODELS_VISION : FREE_MODELS;
+  const errors = [];
   for (const model of models) {
-    try {
-      return await tryModel(model, question, hasImage);
-    } catch (e) {
-      if (e.message === 'NO_KEY') throw e;
-      console.warn(`Model ${model} failed:`, e.message);
+    // ลองแต่ละโมเดลสูงสุด 2 ครั้ง (สำหรับ rate-limit 429)
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        return await tryModel(model, question, hasImage);
+      } catch (e) {
+        // ถ้า rate-limit รอ 15 วิแล้วลองใหม่
+        if (e.message.includes('429') && attempt === 1) {
+          await new Promise(r => setTimeout(r, 15000));
+          continue;
+        }
+        errors.push(`${model}: ${e.message}`);
+        console.warn(`Model ${model} failed:`, e.message);
+        break;
+      }
     }
   }
-  throw new Error('ทุกรุ่นไม่สามารถตอบได้ ลองใหม่ภายหลัง');
+  throw new Error('โมเดลทั้งหมดล้มเหลว:\n' + errors.slice(0, 3).join('\n') + '\n...');
 }
 
 async function tryModel(model, question, hasImage) {
-  const messages = [{ role: 'system', content: 'เรียกผู้ใช้ว่า พี่โอม🩵 เป็นน้องตัวเล็กๆ ที่พูดกับพี่ พูดแบบน่ารัก เป็นกันเอง ใช้คำว่า "พี่" ขึ้นต้น ไม่ต้องทางการ' }];
+  const messages = [{ role: 'system', content: 'You are น้องโอม🩵, a friendly Thai AI assistant. Always refer to the user as "พี่". Be cute, warm, use colloquial Thai naturally.\n\nCRITICAL: Respond in Thai ONLY. Never use English, Russian, Chinese, or any other language in your output — even if this prompt is in English, your answer must be in Thai.' }];
   state.history.slice(-MAX_HISTORY).forEach(h => messages.push({ role: h.role, content: h.text }));
   const userContent = [];
   if (hasImage && state.image.data) userContent.push({ type: 'image_url', image_url: { url: `data:${state.image.mime};base64,${state.image.data}` } });
   userContent.push({ type: 'text', text: question });
   messages.push({ role: 'user', content: userContent });
+  const apiKey = getApiKey();
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.apiKey}`, 'HTTP-Referer': 'https://memo.local', 'X-Title': 'Memo' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      // Referer ควรเป็น origin ของหน้าเว็บจริง ไม่ใช่ openrouter.ai ถ้ารันจาก localhost / github.io
+      'HTTP-Referer': window.location.href,
+      'X-Title': 'Memo AI'
+    },
     body: JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 2048 })
   });
   const data = await res.json();
@@ -201,18 +220,48 @@ function parseChoices(text) {
   return has ? choices : null;
 }
 
+// === MARKDOWN RENDERER (เบื้องต้น) ===
+function renderMarkdown(text) {
+  // escape HTML ก่อน
+  let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // code block
+  s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
+    `<pre class="md-code"><code>${code.trim()}</code></pre>`
+  );
+  // inline code
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // headers
+  s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  s = s.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  s = s.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  // bold / italic
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  s = s.replace(/\*([^*]+)\*/g, '<i>$1</i>');
+  // bullet list
+  s = s.replace(/^- (.+)$/gm, '<li>$1</li>');
+  s = s.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+  // line breaks
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
+
 async function sendMessage(overrideText) {
   if (state.sending) return;
   const text = (overrideText || input.value).trim();
   if (!text && !state.image.data) return;
   state.sending = true; sendBtn.disabled = true;
-  const hasImage = !!state.image.data;
-  addMessage('user', text, hasImage ? { image: `data:${state.image.mime};base64,${state.image.data}` } : {});
+  const hasImage = !!state.image.data && state.image.mime !== 'application/pdf';
+  const hasPdf = state.image.mime === 'application/pdf' && !!state.pdfText;
+  addMessage('user', text || '(ไฟล์แนบ)', hasImage ? { image: `data:${state.image.mime};base64,${state.image.data}` } : {});
   input.value = ''; showTyping();
   try {
-    if (!state.apiKey) { hideTyping(); addMessage('ai', 'ใส่ API Key ที่ openrouter.ai/keys'); state.sending = false; sendBtn.disabled = false; return; }
     let prompt = text;
-    if (hasImage) {
+    const source = hasPdf ? `เนื้อหา PDF:\n${state.pdfText}\n\n` : '';
+    if (hasPdf) {
+      // ถ้าไม่ได้พิมพ์อะไรเพิ่ม ให้สั่งสรุปอัตโนมัติ
+      if (!prompt) prompt = 'สรุปเนื้อหาจากเอกสารนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน';
+      else prompt = source + prompt;
+    } else if (hasImage) {
       if (/สรุป|summary/i.test(text)) prompt = 'สรุปเนื้อหาจากรูปนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน';
       else if (/ข้อสอบ|quiz|เฉลย|ช้อย/i.test(text)) prompt = 'จากรูปนี้ ทำข้อสอบแบบเลือกตอบ ก ข ค ง มาให้ 5 ข้อ พร้อมเฉลยอธิบายแต่ละข้อว่าทำไมถึงถูกหรือผิด';
       else if (/flashcard|card/i.test(text)) prompt = 'จากรูปนี้ ทำ Flashcards แบบคำถาม-คำตอบมาให้ 10 คู่';
@@ -221,13 +270,18 @@ async function sendMessage(overrideText) {
     hideTyping();
     const choices = parseChoices(reply);
     addMessage('ai', reply, choices ? { choices } : {});
-    if (state.image.data) clearImage();
-  } catch (err) { hideTyping(); addMessage('ai', `Error: ${err.message}`); }
+    clearImage();
+  } catch (err) { hideTyping(); addMessage('ai', `⚠️ ${err.message}`); }
   state.sending = false; sendBtn.disabled = false;
 }
 
 function handleImage(file) {
-  if (!file || !file.type.startsWith('image/')) return;
+  if (!file) return;
+  if (file.type === 'application/pdf') return handlePdf(file);
+  if (!file.type.startsWith('image/')) {
+    addMessage('ai', 'รองรับเฉพาะรูปภาพ (PNG/JPG) และ PDF เท่านั้น');
+    return;
+  }
   if (file.size > 10 * 1024 * 1024) { addMessage('ai', 'รูปใหญ่เกินไป (จำกัด 10MB)'); return; }
   const reader = new FileReader();
   reader.onerror = () => { addMessage('ai', 'อ่านรูปไม่สำเร็จ'); };
@@ -244,7 +298,43 @@ function handleImage(file) {
 }
 function clearImage() {
   state.image = { data: '', name: '', mime: '' };
+  state.pdfText = '';
   previewBar.classList.remove('show'); fileInput.value = '';
+}
+
+// === PDF TEXT EXTRACTION ===
+async function extractPdfText(file) {
+  if (typeof pdfjsLib === 'undefined') {
+    throw new Error('PDF library ยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่');
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = '';
+  for (let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it => it.str).join(' ') + '\n\n';
+  }
+  return text.trim();
+}
+
+async function handlePdf(file) {
+  if (file.size > 20 * 1024 * 1024) {
+    addMessage('ai', 'PDF ใหญ่เกินไป (จำกัด 20MB)'); return;
+  }
+  addMessage('ai', '📄 กำลังอ่าน PDF...');
+  try {
+    state.pdfText = await extractPdfText(file);
+    state.image = { data: '', name: file.name, mime: 'application/pdf' };
+    previewName.textContent = file.name + ` (${state.pdfText.length} chars)`;
+    previewThumb.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmQ3MDAiIHN0cm9rZS13aWR0aD0iMiI+PHJlY3QgeD0iMyIgeT0iMiIgd2lkdGg9IjE4IiBoZWlnaHQ9IjIwIiByeD0iMiIvPjxsaW5lIHg9IjciIHk9IjYiIHgyPSIxNyIgeT0iNiIvPjxsaW5lIHg9IjciIHk9IjEwIiB4Mj0iMTciIHk9IjEwIi8+PGxpbmUgeD0iNyIgeT0iMTQiIHgyPSIxNyIgeT0iMTQiLz48L3N2Zz4=';
+    previewBar.classList.add('show');
+    input.focus();
+  } catch (e) {
+    addMessage('ai', 'อ่าน PDF ไม่สำเร็จ: ' + e.message);
+  }
 }
 
 // === QUICK ACTIONS ===
@@ -272,7 +362,7 @@ function handleQuickAction(action) {
 function toggleStealth() {
   state.stealth = !state.stealth;
   stealthOverlay.classList.toggle('show', state.stealth);
-  if (state.stealth) { input.blur(); apiToast.classList.remove('show'); }
+  if (state.stealth) { input.blur(); }
   else input.focus();
 }
 
@@ -298,13 +388,6 @@ input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDef
 fileBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => handleImage(e.target.files[0]));
 removeImgBtn.addEventListener('click', clearImage);
-apiBtn.addEventListener('click', () => { apiKeyInput.value = state.apiKey; apiToast.classList.add('show'); });
-closeToast.addEventListener('click', () => apiToast.classList.remove('show'));
-saveApiKey.addEventListener('click', () => {
-  const k = apiKeyInput.value.trim(); if (!k) return;
-  state.apiKey = k; setApiKey(k); apiToast.classList.remove('show');
-  updateApiStatus(); addMessage('ai', '✅ saved');
-});
 document.querySelectorAll('.quick-btn').forEach(btn => btn.addEventListener('click', () => handleQuickAction(btn.dataset.action)));
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', (e) => { e.preventDefault(); if (e.dataTransfer.files[0]) handleImage(e.dataTransfer.files[0]); });
@@ -317,19 +400,19 @@ window.addEventListener('resize', () => {
   lastHeight = h;
 });
 
-function updateApiStatus() { apiBtn.textContent = state.apiKey ? '✅' : '🔑'; }
-updateApiStatus();
-
-try {
-  checkExpiry(); renderMessages();
-} catch (e) {
-  state.messages = []; state.history = []; state.timestamp = Date.now();
+// โหลดคีย์จากไฟล์แล้วเริ่มต้นแอป
+loadApiKey().then(() => {
   try {
-    localStorage.setItem('chat_history', '[]');
-    localStorage.setItem('ai_history', '[]');
-    localStorage.setItem('chat_timestamp', String(state.timestamp));
-  } catch {}
-  renderMessages();
-}
+    checkExpiry(); renderMessages();
+  } catch (e) {
+    state.messages = []; state.history = []; state.timestamp = Date.now();
+    try {
+      localStorage.setItem('chat_history', '[]');
+      localStorage.setItem('ai_history', '[]');
+      localStorage.setItem('chat_timestamp', String(state.timestamp));
+    } catch {}
+    renderMessages();
+  }
+});
 setInterval(updateTimer, 1000);
 updateTimer();
