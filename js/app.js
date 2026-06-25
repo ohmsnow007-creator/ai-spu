@@ -8,7 +8,6 @@ function safeParse(key, fallback) {
 }
 
 const state = {
-  apiKey: API_KEY,
   image: { data: '', name: '', mime: '' },
   pdfText: '',
   messages: safeParse('chat_history', []),
