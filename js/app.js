@@ -21,7 +21,7 @@ const KEYS = {
   ],
 };
 
-const FETCH_TIMEOUT = 8000; // timeout 8 วิ ไม่งั้นข้าม
+const FETCH_TIMEOUT = 6000; // timeout 6 วิ ไม่งั้นข้าม
 
 // ===== Provider configs (DeepSeek ก่อนเพราะไวสุด) =====
 const PROVIDERS = [
