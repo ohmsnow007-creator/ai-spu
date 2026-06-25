@@ -21,7 +21,8 @@ const KEYS = {
   ],
 };
 
-const FETCH_TIMEOUT = 6000; // timeout 6 วิ ไม่งั้นข้าม
+const FETCH_TIMEOUT_TEXT = 6000;   // 6 วิ สำหรับข้อความ
+const FETCH_TIMEOUT_VISION = 10000; // 10 วิ สำหรับรูป
 
 // ===== Provider configs (DeepSeek ก่อนเพราะไวสุด) =====
 const PROVIDERS = [
@@ -284,8 +285,9 @@ async function tryModel(provider, model, question, hasImage, apiKey, imgData) {
     body = JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 2048 });
   }
 
+  const timeout = hasImage ? FETCH_TIMEOUT_VISION : FETCH_TIMEOUT_TEXT;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  const timer = setTimeout(() => controller.abort(), timeout);
   const res = await fetch(url, { method: 'POST', headers, body, signal: controller.signal });
   clearTimeout(timer);
   const data = await res.json();
