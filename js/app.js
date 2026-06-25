@@ -514,25 +514,21 @@ function toggleStealth() {
   else input.focus();
 }
 
-let touchStartX = 0, touchStartY = 0;
-document.addEventListener('touchstart', (e) => {
-  touchStartX = e.changedTouches[0].screenX;
-  touchStartY = e.changedTouches[0].screenY;
-}, { passive: true });
-document.addEventListener('touchend', (e) => {
-  const dx = e.changedTouches[0].screenX - touchStartX;
-  const dy = e.changedTouches[0].screenY - touchStartY;
-  if (Math.abs(dx) > 60 && Math.abs(dy) < 100) toggleStealth();
-}, { passive: true });
-document.addEventListener('click', (e) => {
-  if (e.clientY < 30 && state.stealth) toggleStealth();
-});
-
 sendBtn.addEventListener('click', () => sendMessage());
 input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 fileInput.addEventListener('change', (e) => handleImage(e.target.files[0]));
 removeImgBtn.addEventListener('click', clearImage);
-$('menuToggle').addEventListener('click', showHistoryPanel);
+let tapCount = 0, tapTimer = null;
+$('menuToggle').addEventListener('click', () => {
+  tapCount++;
+  if (tapCount === 3) {
+    toggleStealth(); tapCount = 0;
+    clearTimeout(tapTimer); return;
+  }
+  if (tapCount === 1) showHistoryPanel();
+  clearTimeout(tapTimer);
+  tapTimer = setTimeout(() => { tapCount = 0; }, 600);
+});
 $('closePanel').addEventListener('click', hideHistoryPanel);
 $('newChatBtn').addEventListener('click', () => {
   state.messages = []; state.history = []; state.msgId = 0; state.imgVer = 0;
