@@ -142,7 +142,7 @@ async function callAI(question, hasImage) {
   if (hasImage && state.image.data) userContent.push({ type: 'image_url', image_url: { url: `data:${state.image.mime};base64,${state.image.data}` } });
   userContent.push({ type: 'text', text: question });
   messages.push({ role: 'user', content: userContent });
-  const model = 'openrouter/free';
+  const model = 'google/gemma-4-31b-it:free';
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.apiKey}`, 'HTTP-Referer': 'https://memo.local', 'X-Title': 'Memo' },
