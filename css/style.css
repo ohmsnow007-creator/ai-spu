@@ -1,29 +1,31 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 :root{
-  --bg:#0a0a0f;
-  --bg2:#0e0e16;
-  --card:#12121e;
-  --surface:#18182a;
-  --surface2:#20203a;
-  --border:#28284a;
-  --text:#e8e8f0;
-  --muted:#7a7a9a;
+  --bg:#030308;
+  --bg2:#06060e;
+  --card:#0a0a14;
+  --surface:#0e0e1e;
+  --surface2:#161630;
+  --border:#1a1a3a;
+  --text:#e0e0ee;
+  --muted:#6a6a8a;
   --accent1:#a855f7;
   --accent2:#ec4899;
   --accent3:#f97316;
-  --glow:rgba(168,83,247,0.2);
-  --glow2:rgba(236,72,153,0.15);
+  --glow:rgba(168,83,247,0.25);
+  --glow2:rgba(236,72,153,0.2);
   --radius:14px;
   --radius-sm:10px;
-  --shadow:0 4px 20px rgba(0,0,0,0.5)
+  --shadow:0 4px 24px rgba(0,0,0,0.6)
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);height:100dvh;overflow:hidden;display:flex;flex-direction:column;position:fixed;width:100%;top:0;left:0;-webkit-touch-callout:none}
-/* === HEADER === */
-.chat-header{padding:14px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:sticky;top:0;z-index:10;background:rgba(18,18,30,0.85);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);min-height:56px}
-.chat-header h1{font-size:17px;font-weight:700;flex:1;background:linear-gradient(135deg,var(--accent1),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px;cursor:pointer;transition:opacity .2s}
-.chat-header h1:active{opacity:.6}
+/* === HEADER / LOGO === */
+.chat-header{padding:14px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:sticky;top:0;z-index:10;background:rgba(10,10,20,0.88);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);min-height:60px}
+.chat-header h1{font-size:22px;font-weight:800;flex:1;background:linear-gradient(135deg,var(--accent1),var(--accent2),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.3px;cursor:pointer;transition:all .3s;position:relative;text-shadow:0 0 40px rgba(168,83,247,0.3),0 0 80px rgba(236,72,153,0.15)}
+.chat-header h1:active{opacity:.7;transform:scale(.97)}
 .chat-header h1 span{background:linear-gradient(135deg,var(--accent2),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.chat-header h1::after{content:'';position:absolute;bottom:-2px;left:0;width:60px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--accent1),var(--accent2),transparent);animation:logoGlow 2s ease-in-out infinite}
+@keyframes logoGlow{0%,100%{opacity:.3;transform:scaleX(.6)}50%{opacity:1;transform:scaleX(1.2)}}
 .header-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted);width:34px;height:34px;border-radius:var(--radius-sm);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .25s cubic-bezier(.4,0,.2,1)}
 .header-btn:active{transform:scale(.85);background:var(--surface2);border-color:var(--accent1)}
 #clearHistoryBtn{background:var(--surface);border:1px solid var(--border);color:var(--muted);width:34px;height:34px;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .25s cubic-bezier(.4,0,.2,1)}
