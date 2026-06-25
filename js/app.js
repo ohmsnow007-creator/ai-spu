@@ -1,13 +1,5 @@
-// โหลดคีย์จากไฟล์ api-key.txt (แก้ไขไฟล์นี้ได้เลย ไม่ต้องแก้โค้ด)
-let API_KEY = '';
-async function loadApiKey() {
-  try {
-    const res = await fetch('api-key.txt');
-    API_KEY = (await res.text()).trim();
-  } catch (e) {
-    console.error('โหลด api-key.txt ไม่สำเร็จ:', e);
-  }
-}
+// ฝังคีย์ไว้ในโค้ด (ใช้คนเดียว)
+const API_KEY = 'sk-or-v1-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
 function getApiKey() { return API_KEY; }
 
 function safeParse(key, fallback) {
@@ -400,19 +392,16 @@ window.addEventListener('resize', () => {
   lastHeight = h;
 });
 
-// โหลดคีย์จากไฟล์แล้วเริ่มต้นแอป
-loadApiKey().then(() => {
+try {
+  checkExpiry(); renderMessages();
+} catch (e) {
+  state.messages = []; state.history = []; state.timestamp = Date.now();
   try {
-    checkExpiry(); renderMessages();
-  } catch (e) {
-    state.messages = []; state.history = []; state.timestamp = Date.now();
-    try {
-      localStorage.setItem('chat_history', '[]');
-      localStorage.setItem('ai_history', '[]');
-      localStorage.setItem('chat_timestamp', String(state.timestamp));
-    } catch {}
-    renderMessages();
-  }
-});
+    localStorage.setItem('chat_history', '[]');
+    localStorage.setItem('ai_history', '[]');
+    localStorage.setItem('chat_timestamp', String(state.timestamp));
+  } catch {}
+  renderMessages();
+}
 setInterval(updateTimer, 1000);
 updateTimer();
