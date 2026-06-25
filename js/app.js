@@ -21,57 +21,21 @@ const KEYS = {
   ],
 };
 
-// ===== Provider configs =====
+const FETCH_TIMEOUT = 15000; // 15 วิ timeout แต่ละ request
+
+// ===== Provider configs (เรียงจากเร็วไปช้า) =====
 const PROVIDERS = [
   {
-    name: 'OpenRouter',
-    baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
-    needReferer: true,
-    keys: KEYS.openRouter.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
-    models: [
-      'google/gemma-4-31b-it:free',
-      'openai/gpt-oss-120b:free',
-      'meta-llama/llama-3.3-70b-instruct:free',
-      'qwen/qwen3-coder:free',
-      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-      'nvidia/nemotron-3-super-120b-a12b:free',
-      'qwen/qwen3-next-80b-a3b-instruct:free',
-      'openrouter/free',
-    ],
-    visionModels: [
-      'google/gemma-4-31b-it:free',
-      'google/gemma-4-26b-a4b-it:free',
-      'qwen/qwen2.5-vl-32b-instruct:free',
-      'nvidia/nemotron-nano-12b-v2-vl:free',
-      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-      'openrouter/free',
-    ],
-  },
-  {
-    name: 'OpenAI',
-    baseUrl: 'https://api.openai.com/v1/chat/completions',
+    name: 'Groq',
+    baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
     needReferer: false,
-    keys: KEYS.openAI.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
+    keys: KEYS.groq.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
     models: [
-      'gpt-4o-mini',
-      'gpt-4o',
+      'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant',
     ],
     visionModels: [
-      'gpt-4o-mini',
-      'gpt-4o',
-    ],
-  },
-  {
-    name: 'DeepSeek',
-    baseUrl: 'https://api.deepseek.com/v1/chat/completions',
-    needReferer: false,
-    keys: KEYS.deepSeek.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
-    models: [
-      'deepseek-chat',
-      'deepseek-reasoner',
-    ],
-    visionModels: [
-      // DeepSeek ยังไม่มี vision model ผ่าน API
+      'llama-3.2-11b-vision-preview',
     ],
   },
   {
@@ -91,16 +55,47 @@ const PROVIDERS = [
     ],
   },
   {
-    name: 'Groq',
-    baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
+    name: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com/v1/chat/completions',
     needReferer: false,
-    keys: KEYS.groq.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
+    keys: KEYS.deepSeek.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
     models: [
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
+      'deepseek-chat',
+      'deepseek-reasoner',
     ],
     visionModels: [
-      'llama-3.2-11b-vision-preview',
+      // DeepSeek ยังไม่มี vision model ผ่าน API
+    ],
+  },
+  {
+    name: 'OpenAI',
+    baseUrl: 'https://api.openai.com/v1/chat/completions',
+    needReferer: false,
+    keys: KEYS.openAI.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
+    models: [
+      'gpt-4o-mini',
+      'gpt-4o',
+    ],
+    visionModels: [
+      'gpt-4o-mini',
+      'gpt-4o',
+    ],
+  },
+  {
+    name: 'OpenRouter',
+    baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+    needReferer: true,
+    keys: KEYS.openRouter.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
+    models: [
+      'google/gemma-4-31b-it:free',
+      'nvidia/nemotron-3-super-120b-a12b:free',
+      'openrouter/free',
+    ],
+    visionModels: [
+      'google/gemma-4-31b-it:free',
+      'nvidia/nemotron-nano-12b-v2-vl:free',
+      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+      'openrouter/free',
     ],
   },
 ];
@@ -289,7 +284,10 @@ async function tryModel(provider, model, question, hasImage, apiKey, imgData) {
     body = JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 2048 });
   }
 
-  const res = await fetch(url, { method: 'POST', headers, body });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  const res = await fetch(url, { method: 'POST', headers, body, signal: controller.signal });
+  clearTimeout(timer);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
 
