@@ -1,8 +1,6 @@
 // ใช้ 2 keys: หลัก + สำรอง (ถ้าหลัก error จะสลับไปใช้สำรองอัตโนมัติ)
 const KEY_MAIN = ['sk-or-v1-', '19fbfa52', 'bdaecb2f', 'd0ba1cf6', 'a24f09f7', '89fd4ea0', '7c213bc1', 'a66e23de', '852efef9'].join('');
 const KEY_BACKUP = ['sk-or-v1-', 'ea63325d', '3f827c15', '23351a69', 'cf23c3bd', 'ac90f968', '23ed3d38', 'c4c1f934', '4e134a95'].join('');
-function getApiKey() { return KEY_MAIN; }
-
 function safeParse(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
 }
@@ -253,7 +251,8 @@ async function sendMessage(overrideText) {
       if (!prompt) prompt = 'สรุปเนื้อหาจากเอกสารนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน';
       else prompt = source + prompt;
     } else if (hasImage) {
-      if (/สรุป|summary/i.test(text)) prompt = 'สรุปเนื้อหาจากรูปนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน';
+      if (!text) prompt = 'รูปนี้เกี่ยวกับอะไร ช่วยอธิบายให้หน่อย';
+      else if (/สรุป|summary/i.test(text)) prompt = 'สรุปเนื้อหาจากรูปนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน';
       else if (/ข้อสอบ|quiz|เฉลย|ช้อย/i.test(text)) prompt = 'จากรูปนี้ ทำข้อสอบแบบเลือกตอบ ก ข ค ง มาให้ 5 ข้อ พร้อมเฉลยอธิบายแต่ละข้อว่าทำไมถึงถูกหรือผิด';
       else if (/flashcard|card/i.test(text)) prompt = 'จากรูปนี้ ทำ Flashcards แบบคำถาม-คำตอบมาให้ 10 คู่';
     }
