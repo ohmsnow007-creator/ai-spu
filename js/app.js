@@ -509,8 +509,14 @@ async function handlePdf(file) {
 
 function toggleVideo() {
   const shown = videoOverlay.classList.toggle('show');
-  if (shown) { overlayVideo.currentTime = 0; overlayVideo.play(); input.blur(); }
-  else { overlayVideo.pause(); input.focus(); }
+  if (shown) {
+    overlayVideo.currentTime = 0;
+    overlayVideo.play().catch(() => {});
+    input.blur();
+  } else {
+    overlayVideo.pause();
+    input.focus();
+  }
 }
 
 sendBtn.addEventListener('click', () => sendMessage());
@@ -535,7 +541,8 @@ document.addEventListener('touchend', (e) => {
   const dx = e.changedTouches[0].screenX - sx;
   if (dx > 60) showHistoryPanel();
 }, { passive: true });
-videoOverlay.addEventListener('click', toggleVideo);
+$('videoCloseZone').addEventListener('click', toggleVideo);
+$('videoCloseZone').addEventListener('touchend', (e) => { e.preventDefault(); toggleVideo(); });
 $('closePanel').addEventListener('click', hideHistoryPanel);
 $('newChatBtn').addEventListener('click', () => {
   state.messages = []; state.history = []; state.msgId = 0; state.imgVer = 0;
