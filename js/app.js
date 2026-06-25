@@ -28,6 +28,8 @@ const previewName = $('previewName');
 const removeImgBtn = $('removeImgBtn');
 const timerDisplay = $('timerDisplay');
 const stealthOverlay = $('stealthOverlay');
+const historyPanel = $('historyPanel');
+const historyList = $('historyList');
 
 function checkExpiry() {
   if (Date.now() - state.timestamp > EXPIRY_MS) {
@@ -51,6 +53,7 @@ function renderMessages() {
   state.messages.forEach(m => {
     const div = document.createElement('div');
     div.className = `msg ${m.role}`;
+    if (m.id) div.id = 'msg-' + m.id;
     if (m.role === 'ai') {
       const label = document.createElement('div');
       label.className = 'label';
@@ -295,6 +298,58 @@ function clearImage() {
   previewBar.classList.remove('show'); fileInput.value = '';
 }
 
+function scrollToMessage(id) {
+  historyPanel.classList.remove('show');
+  const el = document.getElementById('msg-' + id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function buildHistoryList() {
+  const pairs = []; let currentUser = null;
+  state.messages.forEach(m => {
+    if (m.role === 'user') currentUser = m;
+    else if (m.role === 'ai' && currentUser) {
+      pairs.push({ user: currentUser, ai: m });
+      currentUser = null;
+    }
+  });
+  if (!pairs.length) {
+    historyList.innerHTML = '<div class="hist-empty">ยังไม่มีคำถาม</div>';
+    return;
+  }
+  historyList.innerHTML = '';
+  for (let i = pairs.length - 1; i >= 0; i--) {
+    const { user, ai } = pairs[i];
+    const item = document.createElement('div');
+    item.className = 'hist-item';
+    const q = document.createElement('div');
+    q.className = 'hist-q';
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + (user.image ? 'image' : 'text');
+    badge.textContent = user.image ? '📷' : '💬';
+    q.appendChild(badge);
+    q.append(document.createTextNode(user.text || '(ไฟล์แนบ)'));
+    const a = document.createElement('div');
+    a.className = 'hist-a' + (ai.loading ? ' loading' : '');
+    a.textContent = ai.loading ? '⏳ กำลังประมวลผล...' : (ai.text ? ai.text.slice(0, 120) + (ai.text.length > 120 ? '...' : '') : '');
+    const t = document.createElement('div');
+    t.className = 'hist-time';
+    t.textContent = user.time;
+    item.append(q, a, t);
+    const scrollId = user.id;
+    item.addEventListener('click', () => scrollToMessage(scrollId));
+    historyList.appendChild(item);
+  }
+}
+
+function showHistoryPanel() {
+  buildHistoryList();
+  historyPanel.classList.add('show');
+}
+function hideHistoryPanel() {
+  historyPanel.classList.remove('show');
+}
+
 async function extractPdfText(file) {
   if (typeof pdfjsLib === 'undefined') {
     throw new Error('PDF library ยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่');
@@ -355,6 +410,8 @@ input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDef
 fileBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => handleImage(e.target.files[0]));
 removeImgBtn.addEventListener('click', clearImage);
+$('menuToggle').addEventListener('click', showHistoryPanel);
+$('closePanel').addEventListener('click', hideHistoryPanel);
 $('newChatBtn').addEventListener('click', () => {
   state.messages = []; state.history = []; state.timestamp = Date.now(); state.msgId = 0;
   localStorage.setItem('chat_history', '[]');

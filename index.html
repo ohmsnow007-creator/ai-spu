@@ -9,9 +9,16 @@
 <body>
 
 <div class="chat-header">
-  <h1>tutor<span>.</span></h1>
+  <h1 id="menuToggle">tutor<span>.</span></h1>
   <button id="newChatBtn" title="เริ่มใหม่">＋</button>
   <span id="timerDisplay"></span>
+</div>
+<div id="historyPanel">
+  <div class="panel-header">
+    <span>ประวัติคำถาม</span>
+    <button id="closePanel">✕</button>
+  </div>
+  <div id="historyList"></div>
 </div>
 
 <div id="chatContainer"></div>
