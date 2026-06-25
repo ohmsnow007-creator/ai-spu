@@ -167,7 +167,7 @@ async function callAI(question, hasImage) {
 }
 
 async function tryModel(model, question, hasImage, apiKey) {
-  const messages = [{ role: 'system', content: 'You are a Thai tutor named โอม. You help students learn by explaining concepts clearly, giving examples, and asking questions. Always respond in Thai. Be patient, encouraging, and educational. For homework or problems, guide step-by-step rather than giving direct answers. Explain why each step works.' }];
+  const messages = [{ role: 'system', content: 'คุณคือติวเตอร์ AI ชื่อ "โอม" ผู้ช่วยเรียนอัจฉริยะ ตอบเป็นภาษาไทยเท่านั้น ใช้ภาษาเข้าใจง่าย เป็นกันเอง เหมาะกับนักเรียน\n\nเมื่อผู้ใช้อัปโหลดรูปภาพ ให้วิเคราะห์และตอบตามรูปแบบต่อไปนี้:\n\n--- รูปเนื้อหาเรียนทั่วไป (บทความ, แผนภาพ, กราฟ, แผนที่, วิทยาศาสตร์, ประวัติศาสตร์) ---\nTitle:\n[หัวข้อ]\n\nExplanation:\n[อธิบายเชิงการศึกษา]\n\nKey Points:\n• จุดที่ 1\n• จุดที่ 2\n• จุดที่ 3\n\n--- รูปข้อสอบเลือกตอบ (มี choices A/B/C/D หรือ 1/2/3/4) ---\nQuestion:\n[คำถาม]\n\nCorrect Answer:\n[ตัวเลือกที่ถูก]\n\nReason:\n[เหตุผล]\n\nWhy Other Choices Are Incorrect:\n• Choice A: ...\n• Choice B: ...\n• Choice C: ...\n• Choice D: ...\n\nConfidence:\nHigh / Medium / Low\n\n--- รูปที่ต้องใช้การมองเห็น (แผนที่, กราฟ, ภาพวาด, แผนภาพ, ศิลปะ, สัญลักษณ์) ---\nVisual Analysis:\n[สิ่งที่เห็น]\n\nImportant Clues:\n• ...\n• ...\n\nBest Answer:\n[คำตอบ]\n\nReasoning:\n[อธิบายเหตุผล]\n\nกฎ:\n1. ให้ความรู้เป็นหลัก อธิบายแนวคิดให้ชัดเจน\n2. ใช้ภาษาง่าย เหมาะกับนักเรียน\n3. ใช้โครงสร้างชัดเจน ห้ามตอบคำเดียว\n4. ถ้ามั่นใจน้อย ให้บอกตรงๆ\n5. ห้ามสร้างข้อมูลที่ไม่มีในภาพ\n6. ใช้ visual reasoning เมื่อคำตอบขึ้นอยู่กับภาพ' }];
   state.history.slice(-MAX_HISTORY).forEach(h => messages.push({ role: h.role, content: h.text }));
   const userContent = [];
   if (hasImage && state.image.data) userContent.push({ type: 'image_url', image_url: { url: `data:${state.image.mime};base64,${state.image.data}` } });
@@ -253,10 +253,9 @@ async function sendMessage(overrideText) {
       if (!prompt) prompt = 'สรุปเนื้อหาจากเอกสารนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน';
       else prompt = source + prompt;
     } else if (hasImage) {
-      if (!text) prompt = 'รูปนี้เกี่ยวกับอะไร ช่วยอธิบายให้หน่อย';
-      else if (/สรุป|summary/i.test(text)) prompt = 'สรุปเนื้อหาจากรูปนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน';
-      else if (/ข้อสอบ|quiz|เฉลย|ช้อย/i.test(text)) prompt = 'จากรูปนี้ ทำข้อสอบแบบเลือกตอบ ก ข ค ง มาให้ 5 ข้อ พร้อมเฉลยอธิบายแต่ละข้อว่าทำไมถึงถูกหรือผิด';
-      else if (/flashcard|card/i.test(text)) prompt = 'จากรูปนี้ ทำ Flashcards แบบคำถาม-คำตอบมาให้ 10 คู่';
+      if (!text) prompt = '';
+      else if (/ข้อสอบ|quiz|เฉลย|ช้อย|choices/i.test(text)) prompt = 'รูปนี้เป็นข้อสอบ ช่วยวิเคราะห์และเฉลยให้หน่อย';
+      else if (/สรุป|summary|อธิบาย/i.test(text)) prompt = 'ช่วยอธิบายเนื้อหาในรูปนี้แบบการเรียนการสอน';
     }
     const reply = await callAI(prompt, hasImage);
     hideTyping();
@@ -269,22 +268,25 @@ async function sendMessage(overrideText) {
 
 function handleImage(file) {
   if (!file) return;
+  if (state.sending) { addMessage('ai', '⚠️ กำลังประมวลผลรูปก่อนหน้า กรุณารอสักครู่'); return; }
+  const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf'];
   if (file.type === 'application/pdf') return handlePdf(file);
-  if (!file.type.startsWith('image/')) {
-    addMessage('ai', 'รองรับเฉพาะรูปภาพ (PNG/JPG) และ PDF เท่านั้น');
+  if (!validTypes.includes(file.type) && !file.type.startsWith('image/')) {
+    addMessage('ai', '⚠️ รองรับเฉพาะไฟล์รูปภาพ (JPG, PNG, GIF, WebP) และ PDF เท่านั้น');
     return;
   }
-  if (file.size > 10 * 1024 * 1024) { addMessage('ai', 'รูปใหญ่เกินไป (จำกัด 10MB)'); return; }
+  if (file.size > 10 * 1024 * 1024) { addMessage('ai', '⚠️ รูปใหญ่เกินไป (จำกัด 10MB)'); return; }
   const reader = new FileReader();
-  reader.onerror = () => { addMessage('ai', 'อ่านรูปไม่สำเร็จ'); };
+  reader.onerror = () => { addMessage('ai', '⚠️ อ่านไฟล์ไม่สำเร็จ'); };
   reader.onload = (e) => {
     const data = e.target.result.split(',')[1];
-    if (data.length > 15 * 1024 * 1024) { addMessage('ai', 'รูปความละเอียดสูงเกินไป ลดขนาดก่อน'); return; }
+    if (data.length > 15 * 1024 * 1024) { addMessage('ai', '⚠️ รูปมีความละเอียดสูงเกินไป กรุณาลดขนาดก่อน'); return; }
     state.image = { data, name: file.name, mime: file.type };
     previewThumb.src = e.target.result;
     previewName.textContent = file.name;
     previewBar.classList.add('show');
-    input.focus();
+    addMessage('ai', '📷 กำลังวิเคราะห์รูป โปรดรอสักครู่...');
+    setTimeout(() => sendMessage(), 300);
   };
   reader.readAsDataURL(file);
 }
