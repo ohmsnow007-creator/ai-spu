@@ -518,6 +518,7 @@ sendBtn.addEventListener('click', () => sendMessage());
 input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 fileInput.addEventListener('change', (e) => handleImage(e.target.files[0]));
 removeImgBtn.addEventListener('click', clearImage);
+
 let tapCount = 0, tapTimer = null;
 $('menuToggle').addEventListener('click', () => {
   tapCount++;
@@ -525,10 +526,16 @@ $('menuToggle').addEventListener('click', () => {
     toggleStealth(); tapCount = 0;
     clearTimeout(tapTimer); return;
   }
-  if (tapCount === 1) showHistoryPanel();
   clearTimeout(tapTimer);
   tapTimer = setTimeout(() => { tapCount = 0; }, 600);
 });
+
+let sx = 0;
+document.addEventListener('touchstart', (e) => { sx = e.changedTouches[0].screenX; }, { passive: true });
+document.addEventListener('touchend', (e) => {
+  const dx = e.changedTouches[0].screenX - sx;
+  if (dx > 60) showHistoryPanel();
+}, { passive: true });
 $('closePanel').addEventListener('click', hideHistoryPanel);
 $('newChatBtn').addEventListener('click', () => {
   state.messages = []; state.history = []; state.msgId = 0; state.imgVer = 0;
