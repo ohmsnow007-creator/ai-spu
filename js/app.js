@@ -135,6 +135,8 @@ const FREE_MODELS = [
 // Vision: gemma-31b รองรับรูป + ตอบไทยได้
 const FREE_MODELS_VISION = [
   'google/gemma-4-31b-it:free',
+  'qwen/qwen2.5-vl-72b-instruct:free',
+  'meta-llama/llama-3.2-90b-vision-instruct:free',
 ];
 
 async function callAI(question, hasImage) {
@@ -165,7 +167,7 @@ async function callAI(question, hasImage) {
 }
 
 async function tryModel(model, question, hasImage, apiKey) {
-  const messages = [{ role: 'system', content: 'You are น้องโอม🩵, a friendly Thai AI assistant. Always refer to the user as "พี่". Be cute, warm, use colloquial Thai naturally.\n\nCRITICAL: Respond in Thai ONLY. Never use English, Russian, Chinese, or any other language in your output — even if this prompt is in English, your answer must be in Thai.' }];
+  const messages = [{ role: 'system', content: 'You are a Thai tutor named โอม. You help students learn by explaining concepts clearly, giving examples, and asking questions. Always respond in Thai. Be patient, encouraging, and educational. For homework or problems, guide step-by-step rather than giving direct answers. Explain why each step works.' }];
   state.history.slice(-MAX_HISTORY).forEach(h => messages.push({ role: h.role, content: h.text }));
   const userContent = [];
   if (hasImage && state.image.data) userContent.push({ type: 'image_url', image_url: { url: `data:${state.image.mime};base64,${state.image.data}` } });
@@ -178,7 +180,7 @@ async function tryModel(model, question, hasImage, apiKey) {
       'Authorization': `Bearer ${apiKey}`,
       // Referer ควรเป็น origin ของหน้าเว็บจริง ไม่ใช่ openrouter.ai ถ้ารันจาก localhost / github.io
       'HTTP-Referer': window.location.href,
-      'X-Title': 'Memo AI'
+      'X-Title': 'Tutor AI'
     },
     body: JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 2048 })
   });
@@ -357,6 +359,13 @@ input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDef
 fileBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => handleImage(e.target.files[0]));
 removeImgBtn.addEventListener('click', clearImage);
+$('newChatBtn').addEventListener('click', () => {
+  state.messages = []; state.history = []; state.timestamp = Date.now();
+  localStorage.setItem('chat_history', '[]');
+  localStorage.setItem('ai_history', '[]');
+  localStorage.setItem('chat_timestamp', String(state.timestamp));
+  renderMessages();
+});
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', (e) => { e.preventDefault(); if (e.dataTransfer.files[0]) handleImage(e.dataTransfer.files[0]); });
 setTimeout(() => input.focus(), 500);
