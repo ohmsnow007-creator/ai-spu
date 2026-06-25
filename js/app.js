@@ -134,15 +134,41 @@ function hideTyping() {
   if (el) el.remove();
 }
 
+const FREE_MODELS = [
+  'google/gemma-4-31b-it:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'nvidia/nemotron-nano-12b-v2-vl:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'openai/gpt-oss-120b:free',
+  'qwen/qwen3-coder:free'
+];
+const FREE_MODELS_VISION = [
+  'google/gemma-4-31b-it:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'nvidia/nemotron-nano-12b-v2-vl:free'
+];
+
 async function callAI(question, hasImage) {
   if (!state.apiKey) throw new Error('NO_KEY');
+  const models = hasImage ? FREE_MODELS_VISION : FREE_MODELS;
+  for (const model of models) {
+    try {
+      return await tryModel(model, question, hasImage);
+    } catch (e) {
+      if (e.message === 'NO_KEY') throw e;
+      console.warn(`Model ${model} failed:`, e.message);
+    }
+  }
+  throw new Error('ทุกรุ่นไม่สามารถตอบได้ ลองใหม่ภายหลัง');
+}
+
+async function tryModel(model, question, hasImage) {
   const messages = [];
   state.history.slice(-MAX_HISTORY).forEach(h => messages.push({ role: h.role, content: h.text }));
   const userContent = [];
   if (hasImage && state.image.data) userContent.push({ type: 'image_url', image_url: { url: `data:${state.image.mime};base64,${state.image.data}` } });
   userContent.push({ type: 'text', text: question });
   messages.push({ role: 'user', content: userContent });
-  const model = 'google/gemma-4-31b-it:free';
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.apiKey}`, 'HTTP-Referer': 'https://memo.local', 'X-Title': 'Memo' },
