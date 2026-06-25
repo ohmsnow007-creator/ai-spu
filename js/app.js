@@ -327,27 +327,6 @@ async function handlePdf(file) {
   }
 }
 
-// === QUICK ACTIONS ===
-function handleQuickAction(action) {
-  if (action === 'clear') {
-    state.messages = []; state.history = []; state.timestamp = Date.now();
-    try {
-      localStorage.setItem('chat_history', '[]');
-      localStorage.setItem('ai_history', '[]');
-      localStorage.setItem('chat_timestamp', String(state.timestamp));
-    } catch {}
-    renderMessages(); return;
-  }
-  if (!state.image.data) { addMessage('ai', '📷 อัปโหลดรูปก่อน'); return; }
-  const prompts = {
-    summarize: 'สรุปเนื้อหาจากรูปนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน',
-    quiz: 'จากรูปนี้ ทำข้อสอบแบบเลือกตอบ ก ข ค ง มาให้ 5 ข้อ พร้อมเฉลยอธิบาย',
-    flashcard: 'จากรูปนี้ ทำ Flashcards แบบคำถาม-คำตอบมาให้ 10 คู่',
-    choices: 'จากรูปนี้ ทำให้เป็นข้อสอบเลือกตอบ ก ข ค ง 5 ข้อ แต่ละข้อเฉลยพร้อมอธิบายว่าทำไมข้อนั้นถึงถูก และทำไมข้ออื่นถึงผิด'
-  };
-  sendMessage(prompts[action]);
-}
-
 // === STEALTH MODE ===
 function toggleStealth() {
   state.stealth = !state.stealth;
@@ -378,7 +357,6 @@ input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDef
 fileBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => handleImage(e.target.files[0]));
 removeImgBtn.addEventListener('click', clearImage);
-document.querySelectorAll('.quick-btn').forEach(btn => btn.addEventListener('click', () => handleQuickAction(btn.dataset.action)));
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', (e) => { e.preventDefault(); if (e.dataTransfer.files[0]) handleImage(e.dataTransfer.files[0]); });
 setTimeout(() => input.focus(), 500);
