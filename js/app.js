@@ -110,7 +110,6 @@ const state = {
   messages: safeParse('chat_history', []),
   history: safeParse('ai_history', []),
   msgId: 0,
-  stealth: false,
   imgVer: 0
 };
 const MAX_HISTORY = 20;
@@ -125,7 +124,8 @@ const previewThumb = $('previewThumb');
 const previewName = $('previewName');
 const removeImgBtn = $('removeImgBtn');
 const clearHistoryBtn = $('clearHistoryBtn');
-const stealthOverlay = $('stealthOverlay');
+const videoOverlay = $('videoOverlay');
+const overlayVideo = $('overlayVideo');
 const historyPanel = $('historyPanel');
 const historyList = $('historyList');
 
@@ -507,11 +507,10 @@ async function handlePdf(file) {
   }
 }
 
-function toggleStealth() {
-  state.stealth = !state.stealth;
-  stealthOverlay.classList.toggle('show', state.stealth);
-  if (state.stealth) { input.blur(); }
-  else input.focus();
+function toggleVideo() {
+  const shown = videoOverlay.classList.toggle('show');
+  if (shown) { overlayVideo.currentTime = 0; overlayVideo.play(); input.blur(); }
+  else { overlayVideo.pause(); input.focus(); }
 }
 
 sendBtn.addEventListener('click', () => sendMessage());
@@ -523,7 +522,7 @@ let tapCount = 0, tapTimer = null;
 $('menuToggle').addEventListener('click', () => {
   tapCount++;
   if (tapCount === 3) {
-    toggleStealth(); tapCount = 0;
+    toggleVideo(); tapCount = 0;
     clearTimeout(tapTimer); return;
   }
   clearTimeout(tapTimer);
@@ -536,6 +535,7 @@ document.addEventListener('touchend', (e) => {
   const dx = e.changedTouches[0].screenX - sx;
   if (dx > 60) showHistoryPanel();
 }, { passive: true });
+videoOverlay.addEventListener('click', toggleVideo);
 $('closePanel').addEventListener('click', hideHistoryPanel);
 $('newChatBtn').addEventListener('click', () => {
   state.messages = []; state.history = []; state.msgId = 0; state.imgVer = 0;
