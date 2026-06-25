@@ -1,4 +1,3 @@
-// ใช้ 2 keys: หลัก + สำรอง (ถ้าหลัก error จะสลับไปใช้สำรองอัตโนมัติ)
 const KEY_MAIN = ['sk-or-v1-', '19fbfa52', 'bdaecb2f', 'd0ba1cf6', 'a24f09f7', '89fd4ea0', '7c213bc1', 'a66e23de', '852efef9'].join('');
 const KEY_BACKUP = ['sk-or-v1-', 'ea63325d', '3f827c15', '23351a69', 'cf23c3bd', 'ac90f968', '23ed3d38', 'c4c1f934', '4e134a95'].join('');
 function safeParse(key, fallback) {
@@ -11,7 +10,7 @@ const state = {
   messages: safeParse('chat_history', []),
   history: safeParse('ai_history', []),
   timestamp: parseInt(localStorage.getItem('chat_timestamp') || '0') || Date.now(),
-  sending: false,
+  msgId: 0,
   stealth: false
 };
 const EXPIRY_MS = 3600000;
@@ -64,10 +63,16 @@ function renderMessages() {
       img.src = m.image;
       div.appendChild(img);
     }
-    const text = document.createElement('div');
-    text.className = 'md-body';
-    text.innerHTML = renderMarkdown(m.text);
-    div.appendChild(text);
+    if (m.loading) {
+      const t = document.createElement('div'); t.className = 'typing';
+      t.innerHTML = '<span></span><span></span><span></span>';
+      div.appendChild(t);
+    } else {
+      const text = document.createElement('div');
+      text.className = 'md-body';
+      text.innerHTML = renderMarkdown(m.text);
+      div.appendChild(text);
+    }
     if (m.choices) {
       const wrap = document.createElement('div');
       wrap.className = 'choices';
@@ -92,39 +97,25 @@ function renderMessages() {
 function scrollToBottom() {
   requestAnimationFrame(() => { chatContainer.scrollTop = chatContainer.scrollHeight; });
 }
-function addMessage(role, text, opts = {}) {
-  const msg = { role, text, time: new Date().toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }), ...opts };
-  state.messages.push(msg);
+function saveMessages() {
   try {
-    const toSave = state.messages.slice(-30);
+    const toSave = state.messages.filter(m => !m.loading).slice(-30);
     localStorage.setItem('chat_history', JSON.stringify(toSave));
     localStorage.setItem('chat_timestamp', String(state.timestamp));
   } catch (e) {
     if (e.name === 'QuotaExceededError' || e.code === 22) {
-      state.messages = state.messages.slice(-10);
+      state.messages = state.messages.filter(m => !m.loading).slice(-10);
       localStorage.setItem('chat_history', JSON.stringify(state.messages));
     }
   }
+}
+function addMessage(role, text, opts = {}) {
+  const msg = { role, text, time: new Date().toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }), ...opts };
+  state.messages.push(msg);
+  if (!msg.loading) saveMessages();
   renderMessages();
 }
-function showTyping() {
-  const d = document.createElement('div');
-  d.className = 'msg ai'; d.id = 'typingIndicator';
-  const l = document.createElement('div'); l.className = 'label'; l.textContent = 'ai';
-  d.appendChild(l);
-  const t = document.createElement('div'); t.className = 'typing';
-  t.innerHTML = '<span></span><span></span><span></span>';
-  d.appendChild(t);
-  chatContainer.appendChild(d);
-  scrollToBottom();
-}
-function hideTyping() {
-  const el = document.getElementById('typingIndicator');
-  if (el) el.remove();
-}
 
-// โมเดลที่ทดสอบแล้วตอบกลับได้จริงด้วยคีย์นี้
-// หมายเหตุ: บางโมเดล rate-limit ชั่วคราว จึงมี retry อัตโนมัติ
 const FREE_MODELS = [
   'google/gemma-4-31b-it:free',
   'openai/gpt-oss-120b:free',
@@ -132,32 +123,29 @@ const FREE_MODELS = [
   'qwen/qwen3-coder:free',
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
 ];
-// Vision: gemma-31b รองรับรูป + ตอบไทยได้
 const FREE_MODELS_VISION = [
   'google/gemma-4-31b-it:free',
   'qwen/qwen2.5-vl-72b-instruct:free',
   'meta-llama/llama-3.2-90b-vision-instruct:free',
 ];
 
-async function callAI(question, hasImage) {
+async function callAI(question, hasImage, imgData) {
   const models = hasImage ? FREE_MODELS_VISION : FREE_MODELS;
   const keys = [KEY_MAIN, KEY_BACKUP];
   const errors = [];
 
   for (const apiKey of keys) {
     if (!apiKey || !apiKey.startsWith('sk-or-v1-')) continue;
-    console.log(`[AI] ลองใช้ key: ${apiKey.slice(0, 16)}...`);
     for (const model of models) {
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          return await tryModel(model, question, hasImage, apiKey);
+          return await tryModel(model, question, hasImage, apiKey, imgData);
         } catch (e) {
           if (e.message.includes('429') && attempt === 1) {
             await new Promise(r => setTimeout(r, 15000));
             continue;
           }
           errors.push(`[${apiKey.slice(0, 12)}...] ${model}: ${e.message}`);
-          console.warn(`Key ${apiKey.slice(0, 12)} / Model ${model} failed:`, e.message);
           break;
         }
       }
@@ -166,11 +154,11 @@ async function callAI(question, hasImage) {
   throw new Error('ทุก Key และโมเดลล้มเหลว:\n' + errors.slice(0, 4).join('\n') + '\n...');
 }
 
-async function tryModel(model, question, hasImage, apiKey) {
+async function tryModel(model, question, hasImage, apiKey, imgData) {
   const messages = [{ role: 'system', content: 'คุณคือติวเตอร์ AI ชื่อ "โอม" ผู้ช่วยเรียนอัจฉริยะ ตอบเป็นภาษาไทยเท่านั้น ใช้ภาษาเข้าใจง่าย เป็นกันเอง เหมาะกับนักเรียน\n\nเมื่อผู้ใช้อัปโหลดรูปภาพ ให้วิเคราะห์และตอบตามรูปแบบต่อไปนี้:\n\n--- รูปเนื้อหาเรียนทั่วไป (บทความ, แผนภาพ, กราฟ, แผนที่, วิทยาศาสตร์, ประวัติศาสตร์) ---\nTitle:\n[หัวข้อ]\n\nExplanation:\n[อธิบายเชิงการศึกษา]\n\nKey Points:\n• จุดที่ 1\n• จุดที่ 2\n• จุดที่ 3\n\n--- รูปข้อสอบเลือกตอบ (มี choices A/B/C/D หรือ 1/2/3/4) ---\nQuestion:\n[คำถาม]\n\nCorrect Answer:\n[ตัวเลือกที่ถูก]\n\nReason:\n[เหตุผล]\n\nWhy Other Choices Are Incorrect:\n• Choice A: ...\n• Choice B: ...\n• Choice C: ...\n• Choice D: ...\n\nConfidence:\nHigh / Medium / Low\n\n--- รูปที่ต้องใช้การมองเห็น (แผนที่, กราฟ, ภาพวาด, แผนภาพ, ศิลปะ, สัญลักษณ์) ---\nVisual Analysis:\n[สิ่งที่เห็น]\n\nImportant Clues:\n• ...\n• ...\n\nBest Answer:\n[คำตอบ]\n\nReasoning:\n[อธิบายเหตุผล]\n\nกฎ:\n1. ให้ความรู้เป็นหลัก อธิบายแนวคิดให้ชัดเจน\n2. ใช้ภาษาง่าย เหมาะกับนักเรียน\n3. ใช้โครงสร้างชัดเจน ห้ามตอบคำเดียว\n4. ถ้ามั่นใจน้อย ให้บอกตรงๆ\n5. ห้ามสร้างข้อมูลที่ไม่มีในภาพ\n6. ใช้ visual reasoning เมื่อคำตอบขึ้นอยู่กับภาพ' }];
   state.history.slice(-MAX_HISTORY).forEach(h => messages.push({ role: h.role, content: h.text }));
   const userContent = [];
-  if (hasImage && state.image.data) userContent.push({ type: 'image_url', image_url: { url: `data:${state.image.mime};base64,${state.image.data}` } });
+  if (hasImage && imgData) userContent.push({ type: 'image_url', image_url: { url: `data:${imgData.mime};base64,${imgData.data}` } });
   userContent.push({ type: 'text', text: question });
   messages.push({ role: 'user', content: userContent });
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -178,7 +166,6 @@ async function tryModel(model, question, hasImage, apiKey) {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
-      // Referer ควรเป็น origin ของหน้าเว็บจริง ไม่ใช่ openrouter.ai ถ้ารันจาก localhost / github.io
       'HTTP-Referer': window.location.href,
       'X-Title': 'Tutor AI'
     },
@@ -211,64 +198,77 @@ function parseChoices(text) {
   return has ? choices : null;
 }
 
-// === MARKDOWN RENDERER (เบื้องต้น) ===
 function renderMarkdown(text) {
-  // escape HTML ก่อน
   let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  // code block
   s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
     `<pre class="md-code"><code>${code.trim()}</code></pre>`
   );
-  // inline code
   s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // headers
   s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   s = s.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   s = s.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-  // bold / italic
   s = s.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
   s = s.replace(/\*([^*]+)\*/g, '<i>$1</i>');
-  // bullet list
   s = s.replace(/^- (.+)$/gm, '<li>$1</li>');
   s = s.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
-  // line breaks
   s = s.replace(/\n/g, '<br>');
   return s;
 }
 
 async function sendMessage(overrideText) {
-  if (state.sending) return;
   const text = (overrideText || input.value).trim();
   if (!text && !state.image.data) return;
-  state.sending = true; sendBtn.disabled = true;
+
+  const id = ++state.msgId;
   const hasImage = !!state.image.data && state.image.mime !== 'application/pdf';
   const hasPdf = state.image.mime === 'application/pdf' && !!state.pdfText;
-  addMessage('user', text || '(ไฟล์แนบ)', hasImage ? { image: `data:${state.image.mime};base64,${state.image.data}` } : {});
-  input.value = ''; showTyping();
+  const imgData = hasImage ? { data: state.image.data, mime: state.image.mime } : null;
+  const pdfText = state.pdfText;
+
+  addMessage('user', text || '(ไฟล์แนบ)', { id, ...(imgData ? { image: `data:${imgData.mime};base64,${imgData.data}` } : {}) });
+  input.value = '';
+
+  const aiMsg = { role: 'ai', text: '', id: id + '-ai', loading: true, time: new Date().toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' }) };
+  state.messages.push(aiMsg);
+  renderMessages();
+
+  let prompt = text;
+  if (hasPdf) {
+    if (!prompt) prompt = 'สรุปเนื้อหาจากเอกสารนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน';
+    else prompt = `เนื้อหา PDF:\n${pdfText}\n\n` + prompt;
+  } else if (hasImage && !text) {
+    prompt = '';
+  } else if (hasImage && /ข้อสอบ|quiz|เฉลย|ช้อย|choices/i.test(text)) {
+    prompt = 'รูปนี้เป็นข้อสอบ ช่วยวิเคราะห์และเฉลยให้หน่อย';
+  } else if (hasImage && /สรุป|summary|อธิบาย/i.test(text)) {
+    prompt = 'ช่วยอธิบายเนื้อหาในรูปนี้แบบการเรียนการสอน';
+  }
+
   try {
-    let prompt = text;
-    const source = hasPdf ? `เนื้อหา PDF:\n${state.pdfText}\n\n` : '';
-    if (hasPdf) {
-      // ถ้าไม่ได้พิมพ์อะไรเพิ่ม ให้สั่งสรุปอัตโนมัติ
-      if (!prompt) prompt = 'สรุปเนื้อหาจากเอกสารนี้ให้หน่อย เป็นประเด็นสั้นๆ เข้าใจง่าย แยกหัวข้อชัดเจน';
-      else prompt = source + prompt;
-    } else if (hasImage) {
-      if (!text) prompt = '';
-      else if (/ข้อสอบ|quiz|เฉลย|ช้อย|choices/i.test(text)) prompt = 'รูปนี้เป็นข้อสอบ ช่วยวิเคราะห์และเฉลยให้หน่อย';
-      else if (/สรุป|summary|อธิบาย/i.test(text)) prompt = 'ช่วยอธิบายเนื้อหาในรูปนี้แบบการเรียนการสอน';
+    const reply = await callAI(prompt, hasImage, imgData);
+    const idx = state.messages.findIndex(m => m.id === id + '-ai');
+    if (idx !== -1) {
+      state.messages[idx].text = reply;
+      state.messages[idx].loading = false;
+      const choices = parseChoices(reply);
+      if (choices) state.messages[idx].choices = choices;
+      saveMessages();
+      renderMessages();
     }
-    const reply = await callAI(prompt, hasImage);
-    hideTyping();
-    const choices = parseChoices(reply);
-    addMessage('ai', reply, choices ? { choices } : {});
     clearImage();
-  } catch (err) { hideTyping(); addMessage('ai', `⚠️ ${err.message}`); }
-  state.sending = false; sendBtn.disabled = false;
+  } catch (err) {
+    const idx = state.messages.findIndex(m => m.id === id + '-ai');
+    if (idx !== -1) {
+      state.messages[idx].text = `⚠️ ${err.message}`;
+      state.messages[idx].loading = false;
+      saveMessages();
+      renderMessages();
+    }
+  }
 }
 
 function handleImage(file) {
   if (!file) return;
-  if (state.sending) { addMessage('ai', '⚠️ กำลังประมวลผลรูปก่อนหน้า กรุณารอสักครู่'); return; }
   const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf'];
   if (file.type === 'application/pdf') return handlePdf(file);
   if (!validTypes.includes(file.type) && !file.type.startsWith('image/')) {
@@ -285,7 +285,6 @@ function handleImage(file) {
     previewThumb.src = e.target.result;
     previewName.textContent = file.name;
     previewBar.classList.add('show');
-    addMessage('ai', '📷 กำลังวิเคราะห์รูป โปรดรอสักครู่...');
     setTimeout(() => sendMessage(), 300);
   };
   reader.readAsDataURL(file);
@@ -296,7 +295,6 @@ function clearImage() {
   previewBar.classList.remove('show'); fileInput.value = '';
 }
 
-// === PDF TEXT EXTRACTION ===
 async function extractPdfText(file) {
   if (typeof pdfjsLib === 'undefined') {
     throw new Error('PDF library ยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่');
@@ -325,13 +323,12 @@ async function handlePdf(file) {
     previewName.textContent = file.name + ` (${state.pdfText.length} chars)`;
     previewThumb.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmQ3MDAiIHN0cm9rZS13aWR0aD0iMiI+PHJlY3QgeD0iMyIgeT0iMiIgd2lkdGg9IjE4IiBoZWlnaHQ9IjIwIiByeD0iMiIvPjxsaW5lIHg9IjciIHk9IjYiIHgyPSIxNyIgeT0iNiIvPjxsaW5lIHg9IjciIHk9IjEwIiB4Mj0iMTciIHk9IjEwIi8+PGxpbmUgeD0iNyIgeT0iMTQiIHgyPSIxNyIgeT0iMTQiLz48L3N2Zz4=';
     previewBar.classList.add('show');
-    input.focus();
+    setTimeout(() => sendMessage(), 300);
   } catch (e) {
     addMessage('ai', 'อ่าน PDF ไม่สำเร็จ: ' + e.message);
   }
 }
 
-// === STEALTH MODE ===
 function toggleStealth() {
   state.stealth = !state.stealth;
   stealthOverlay.classList.toggle('show', state.stealth);
@@ -349,20 +346,17 @@ document.addEventListener('touchend', (e) => {
   const dy = e.changedTouches[0].screenY - touchStartY;
   if (Math.abs(dx) > 60 && Math.abs(dy) < 100) toggleStealth();
 }, { passive: true });
-
-// Tap status bar to toggle (iOS)
 document.addEventListener('click', (e) => {
   if (e.clientY < 30 && state.stealth) toggleStealth();
 });
 
-// === EVENTS ===
 sendBtn.addEventListener('click', () => sendMessage());
 input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendMessage(); } });
 fileBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', (e) => handleImage(e.target.files[0]));
 removeImgBtn.addEventListener('click', clearImage);
 $('newChatBtn').addEventListener('click', () => {
-  state.messages = []; state.history = []; state.timestamp = Date.now();
+  state.messages = []; state.history = []; state.timestamp = Date.now(); state.msgId = 0;
   localStorage.setItem('chat_history', '[]');
   localStorage.setItem('ai_history', '[]');
   localStorage.setItem('chat_timestamp', String(state.timestamp));
