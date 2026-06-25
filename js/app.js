@@ -21,10 +21,23 @@ const KEYS = {
   ],
 };
 
-const FETCH_TIMEOUT = 15000; // 15 วิ timeout แต่ละ request
+const FETCH_TIMEOUT = 8000; // timeout 8 วิ ไม่งั้นข้าม
 
-// ===== Provider configs (เรียงจากเร็วไปช้า) =====
+// ===== Provider configs (DeepSeek ก่อนเพราะไวสุด) =====
 const PROVIDERS = [
+  {
+    name: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com/v1/chat/completions',
+    needReferer: false,
+    keys: KEYS.deepSeek.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
+    models: [
+      'deepseek-chat',
+      'deepseek-reasoner',
+    ],
+    visionModels: [
+      // DeepSeek ยังไม่มี vision model ผ่าน API → ข้ามไป Groq/Google อัตโนมัติ
+    ],
+  },
   {
     name: 'Groq',
     baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
@@ -52,19 +65,6 @@ const PROVIDERS = [
       'gemini-2.0-flash:generateContent',
       'gemini-2.5-flash-preview:generateContent',
       'gemini-1.5-flash:generateContent',
-    ],
-  },
-  {
-    name: 'DeepSeek',
-    baseUrl: 'https://api.deepseek.com/v1/chat/completions',
-    needReferer: false,
-    keys: KEYS.deepSeek.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
-    models: [
-      'deepseek-chat',
-      'deepseek-reasoner',
-    ],
-    visionModels: [
-      // DeepSeek ยังไม่มี vision model ผ่าน API
     ],
   },
   {
