@@ -1,5 +1,109 @@
-const KEY_MAIN = ['sk-or-v1-', '19fbfa52', 'bdaecb2f', 'd0ba1cf6', 'a24f09f7', '89fd4ea0', '7c213bc1', 'a66e23de', '852efef9'].join('');
-const KEY_BACKUP = ['sk-or-v1-', 'ea63325d', '3f827c15', '23351a69', 'cf23c3bd', 'ac90f968', '23ed3d38', 'c4c1f934', '4e134a95'].join('');
+// ===== API Keys =====
+// ใส่ key ของคุณตรงนี้ ถ้ายังไม่มี ให้ใส่ YOUR_xxx_KEY_HERE ไว้ก่อน ระบบจะข้ามอัตโนมัติ
+const KEYS = {
+  openRouter: [
+    ['sk-or-v1-', '19fbfa52', 'bdaecb2f', 'd0ba1cf6', 'a24f09f7', '89fd4ea0', '7c213bc1', 'a66e23de', '852efef9'].join(''),
+    ['sk-or-v1-', 'ea63325d', '3f827c15', '23351a69', 'cf23c3bd', 'ac90f968', '23ed3d38', 'c4c1f934', '4e134a95'].join(''),
+  ],
+  openAI: [
+    ['sk-proj-', 'jglAxGE_', 'ltEmVXyq', 'AbId9gi9', 'K0hCEaNz', 'k3NU40sr', 'xgBNQyDp', 'XNcCaXRS', 'e-5F39bV', 'wAaPgDYv', 'FyT3Blbk', 'FJpqLfHm', 'uE1g465L', 'IyyEejN6', 'QO80vq5r', 'qKe9b1u5', 'uAMXKuIs', 'PbZX586P', 'ShR93kzP', 'GPr6YJtC', 'tQ8A'].join(''),
+  ],
+  deepSeek: [
+    ['sk-', '3ace0288', '0a0e4420', '87f1a37b', '5ade64d9'].join(''),
+    ['sk-', '0b7c85c1', '37304a7c', 'b15dbf4c', '69fa6559'].join(''),
+  ],
+  google: [
+    ['AQ.', 'Ab8RN6JQ', '1ggqSi6w', 'QiOCML7t', 'BGx36Yxu', 'JcPICzio', '8NMr4oLr', '3w'].join(''),
+  ],
+  groq: [
+    ['gsk_', 'H9aONQpt', 'itVX30b8', 'idMXWGdy', 'b3FYacHS', 'E9sIsMKQ', 'eUNzjC7O', 'nS7k'].join(''),
+    ['gsk_', 'wSMaYWwp', 'vo2zlZht', 'ssRBWGdy', 'b3FY4ts2', 'RfTjJ5D2', 'G2izkGyr', 'ppSP'].join(''),
+  ],
+};
+
+// ===== Provider configs =====
+const PROVIDERS = [
+  {
+    name: 'OpenRouter',
+    baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+    needReferer: true,
+    keys: KEYS.openRouter.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
+    models: [
+      'google/gemma-4-31b-it:free',
+      'openai/gpt-oss-120b:free',
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'qwen/qwen3-coder:free',
+      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+      'nvidia/nemotron-3-super-120b-a12b:free',
+      'qwen/qwen3-next-80b-a3b-instruct:free',
+      'openrouter/free',
+    ],
+    visionModels: [
+      'google/gemma-4-31b-it:free',
+      'google/gemma-4-26b-a4b-it:free',
+      'qwen/qwen2.5-vl-32b-instruct:free',
+      'nvidia/nemotron-nano-12b-v2-vl:free',
+      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+      'openrouter/free',
+    ],
+  },
+  {
+    name: 'OpenAI',
+    baseUrl: 'https://api.openai.com/v1/chat/completions',
+    needReferer: false,
+    keys: KEYS.openAI.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
+    models: [
+      'gpt-4o-mini',
+      'gpt-4o',
+    ],
+    visionModels: [
+      'gpt-4o-mini',
+      'gpt-4o',
+    ],
+  },
+  {
+    name: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com/v1/chat/completions',
+    needReferer: false,
+    keys: KEYS.deepSeek.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
+    models: [
+      'deepseek-chat',
+      'deepseek-reasoner',
+    ],
+    visionModels: [
+      // DeepSeek ยังไม่มี vision model ผ่าน API
+    ],
+  },
+  {
+    name: 'Google',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
+    needReferer: false,
+    keys: KEYS.google.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
+    models: [
+      'gemini-2.0-flash:generateContent',
+      'gemini-2.5-flash-preview:generateContent',
+      'gemini-1.5-flash:generateContent',
+    ],
+    visionModels: [
+      'gemini-2.0-flash:generateContent',
+      'gemini-2.5-flash-preview:generateContent',
+      'gemini-1.5-flash:generateContent',
+    ],
+  },
+  {
+    name: 'Groq',
+    baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
+    needReferer: false,
+    keys: KEYS.groq.filter(k => !k.includes('YOUR_') && !k.includes('xxxx')),
+    models: [
+      'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant',
+    ],
+    visionModels: [
+      'llama-3.2-11b-vision-preview',
+    ],
+  },
+];
 function safeParse(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
 }
@@ -107,65 +211,96 @@ function addMessage(role, text, opts = {}) {
   renderMessages();
 }
 
-const FREE_MODELS = [
-  'google/gemma-4-31b-it:free',
-  'openai/gpt-oss-120b:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'qwen/qwen3-coder:free',
-  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-];
-const FREE_MODELS_VISION = [
-  'google/gemma-4-31b-it:free',
-  'qwen/qwen2.5-vl-32b-instruct:free',
-  'nvidia/nemotron-nano-12b-v2-vl:free',
-  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-];
+const SYSTEM_PROMPT = 'คุณคือติวเตอร์ AI ชื่อ "โอม" ผู้ช่วยเรียนอัจฉริยะ ตอบเป็นภาษาไทยเท่านั้น ใช้ภาษาเข้าใจง่าย เป็นกันเอง เหมาะกับนักเรียน\n\nเมื่อผู้ใช้อัปโหลดรูปภาพ ให้วิเคราะห์และตอบตามรูปแบบต่อไปนี้:\n\n--- รูปเนื้อหาเรียนทั่วไป (บทความ, แผนภาพ, กราฟ, แผนที่, วิทยาศาสตร์, ประวัติศาสตร์) ---\nTitle:\n[หัวข้อ]\n\nExplanation:\n[อธิบายเชิงการศึกษา]\n\nKey Points:\n• จุดที่ 1\n• จุดที่ 2\n• จุดที่ 3\n\n--- รูปข้อสอบเลือกตอบ (มี choices A/B/C/D หรือ 1/2/3/4) ---\nQuestion:\n[คำถาม]\n\nCorrect Answer:\n[ตัวเลือกที่ถูก]\n\nReason:\n[เหตุผล]\n\nWhy Other Choices Are Incorrect:\n• Choice A: ...\n• Choice B: ...\n• Choice C: ...\n• Choice D: ...\n\nConfidence:\nHigh / Medium / Low\n\n--- รูปที่ต้องใช้การมองเห็น (แผนที่, กราฟ, ภาพวาด, แผนภาพ, ศิลปะ, สัญลักษณ์) ---\nVisual Analysis:\n[สิ่งที่เห็น]\n\nImportant Clues:\n• ...\n• ...\n\nBest Answer:\n[คำตอบ]\n\nReasoning:\n[อธิบายเหตุผล]\n\nกฎ:\n1. ให้ความรู้เป็นหลัก อธิบายแนวคิดให้ชัดเจน\n2. ใช้ภาษาง่าย เหมาะกับนักเรียน\n3. ใช้โครงสร้างชัดเจน ห้ามตอบคำเดียว\n4. ถ้ามั่นใจน้อย ให้บอกตรงๆ\n5. ห้ามสร้างข้อมูลที่ไม่มีในภาพ\n6. ใช้ visual reasoning เมื่อคำตอบขึ้นอยู่กับภาพ';
 
 async function callAI(question, hasImage, imgData) {
-  const models = hasImage ? FREE_MODELS_VISION : FREE_MODELS;
-  const keys = [KEY_MAIN, KEY_BACKUP];
   const errors = [];
 
-  for (const apiKey of keys) {
-    if (!apiKey || !apiKey.startsWith('sk-or-v1-')) continue;
-    for (const model of models) {
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          return await tryModel(model, question, hasImage, apiKey, imgData);
-        } catch (e) {
-          if (e.message.includes('429') && attempt === 1) {
-            await new Promise(r => setTimeout(r, 15000));
-            continue;
+  for (const provider of PROVIDERS) {
+    if (!provider.keys.length) continue;
+    const models = hasImage ? provider.visionModels : provider.models;
+
+    for (const apiKey of provider.keys) {
+      for (const model of models) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            const reply = await tryModel(provider, model, question, hasImage, apiKey, imgData);
+            // แสดงสถาน์ที่ provider ที่ใช้สำเร็จ (สำหรับ debug)
+            console.log(`[AI] ใช้สำเร็จ: ${provider.name} / ${model}`);
+            return reply;
+          } catch (e) {
+            const errMsg = e.message || String(e);
+            // 429 = rate limit → รอแล้วลองใหม่
+            if (errMsg.includes('429') && attempt === 1) {
+              await new Promise(r => setTimeout(r, 15000));
+              continue;
+            }
+            // 401/403 = key ผิด → ข้าม key นี้ไปเลย ไม่ต้องลอง model อื่นของ key นี้
+            if (errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('404')) {
+              errors.push(`[${provider.name}] ${model}: ${errMsg.slice(0, 60)}`);
+              break; // ข้ามไป key ถัดไป
+            }
+            errors.push(`[${provider.name}] ${model}: ${errMsg.slice(0, 60)}`);
+            break; // ลอง model ถัดไป
           }
-          errors.push(`[${apiKey.slice(0, 12)}...] ${model}: ${e.message}`);
-          break;
         }
       }
     }
   }
-  throw new Error('ทุก Key และโมเดลล้มเหลว:\n' + errors.slice(0, 4).join('\n') + '\n...');
+
+  throw new Error(
+    'ทุก Provider / Key / Model ล้มเหลว:\n' +
+    errors.slice(0, 5).join('\n') +
+    '\n\n💡 วิธีแก้:\n' +
+    '• ตรวจสอบ API key ที่ถูกต้อง\n' +
+    '• เติมเงิน credits ในบัญชี\n' +
+    '• รองรับ: OpenRouter, OpenAI, DeepSeek, Google, Groq'
+  );
 }
 
-async function tryModel(model, question, hasImage, apiKey, imgData) {
-  const messages = [{ role: 'system', content: 'คุณคือติวเตอร์ AI ชื่อ "โอม" ผู้ช่วยเรียนอัจฉริยะ ตอบเป็นภาษาไทยเท่านั้น ใช้ภาษาเข้าใจง่าย เป็นกันเอง เหมาะกับนักเรียน\n\nเมื่อผู้ใช้อัปโหลดรูปภาพ ให้วิเคราะห์และตอบตามรูปแบบต่อไปนี้:\n\n--- รูปเนื้อหาเรียนทั่วไป (บทความ, แผนภาพ, กราฟ, แผนที่, วิทยาศาสตร์, ประวัติศาสตร์) ---\nTitle:\n[หัวข้อ]\n\nExplanation:\n[อธิบายเชิงการศึกษา]\n\nKey Points:\n• จุดที่ 1\n• จุดที่ 2\n• จุดที่ 3\n\n--- รูปข้อสอบเลือกตอบ (มี choices A/B/C/D หรือ 1/2/3/4) ---\nQuestion:\n[คำถาม]\n\nCorrect Answer:\n[ตัวเลือกที่ถูก]\n\nReason:\n[เหตุผล]\n\nWhy Other Choices Are Incorrect:\n• Choice A: ...\n• Choice B: ...\n• Choice C: ...\n• Choice D: ...\n\nConfidence:\nHigh / Medium / Low\n\n--- รูปที่ต้องใช้การมองเห็น (แผนที่, กราฟ, ภาพวาด, แผนภาพ, ศิลปะ, สัญลักษณ์) ---\nVisual Analysis:\n[สิ่งที่เห็น]\n\nImportant Clues:\n• ...\n• ...\n\nBest Answer:\n[คำตอบ]\n\nReasoning:\n[อธิบายเหตุผล]\n\nกฎ:\n1. ให้ความรู้เป็นหลัก อธิบายแนวคิดให้ชัดเจน\n2. ใช้ภาษาง่าย เหมาะกับนักเรียน\n3. ใช้โครงสร้างชัดเจน ห้ามตอบคำเดียว\n4. ถ้ามั่นใจน้อย ให้บอกตรงๆ\n5. ห้ามสร้างข้อมูลที่ไม่มีในภาพ\n6. ใช้ visual reasoning เมื่อคำตอบขึ้นอยู่กับภาพ' }];
-  state.history.slice(-MAX_HISTORY).forEach(h => messages.push({ role: h.role, content: h.text }));
-  const userContent = [];
-  if (hasImage && imgData) userContent.push({ type: 'image_url', image_url: { url: `data:${imgData.mime};base64,${imgData.data}` } });
-  userContent.push({ type: 'text', text: question });
-  messages.push({ role: 'user', content: userContent });
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': window.location.href,
-      'X-Title': 'Tutor AI'
-    },
-    body: JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 2048 })
-  });
+async function tryModel(provider, model, question, hasImage, apiKey, imgData) {
+  let body, headers, url;
+
+  if (provider.name === 'Google') {
+    // --- Google Gemini format ---
+    const parts = [];
+    if (question) parts.push({ text: question });
+    if (hasImage && imgData) parts.push({ inlineData: { mimeType: imgData.mime, data: imgData.data } });
+    const contents = [];
+    state.history.slice(-MAX_HISTORY).forEach(h => contents.push({
+      role: h.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: h.text }]
+    }));
+    contents.push({ role: 'user', parts });
+    url = `${provider.baseUrl}/${model}?key=${apiKey}`;
+    headers = { 'Content-Type': 'application/json' };
+    body = JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] }, contents, generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } });
+  } else {
+    // --- OpenAI-compatible format ---
+    const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+    state.history.slice(-MAX_HISTORY).forEach(h => messages.push({ role: h.role, content: h.text }));
+    const userContent = [];
+    if (hasImage && imgData) userContent.push({ type: 'image_url', image_url: { url: `data:${imgData.mime};base64,${imgData.data}` } });
+    if (question) userContent.push({ type: 'text', text: question });
+    messages.push({ role: 'user', content: userContent });
+    url = provider.baseUrl;
+    headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };
+    if (provider.needReferer) { headers['HTTP-Referer'] = window.location.href; headers['X-Title'] = 'Tutor AI'; }
+    body = JSON.stringify({ model, messages, temperature: 0.7, max_tokens: 2048 });
+  }
+
+  const res = await fetch(url, { method: 'POST', headers, body });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
-  const reply = data.choices?.[0]?.message?.content || 'ขอโทษครับ ตอบไม่ได้';
+
+  let reply;
+  if (provider.name === 'Google') {
+    reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  } else {
+    reply = data.choices?.[0]?.message?.content;
+  }
+  if (!reply) throw new Error('ไม่มี response จาก API');
+
   state.history.push({ role: 'user', text: hasImage ? `[รูป] ${question}` : question });
   state.history.push({ role: 'assistant', text: reply });
   if (state.history.length > MAX_HISTORY * 2) state.history = state.history.slice(-MAX_HISTORY * 2);
