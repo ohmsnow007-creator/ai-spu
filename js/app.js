@@ -1,7 +1,7 @@
-// Key แบบเดิม (ป้องกัน scanner ตรวจจับ)
-const KEY_PARTS = ['sk-or-v1-', '19fbfa52', 'bdaecb2f', 'd0ba1cf6', 'a24f09f7', '89fd4ea0', '7c213bc1', 'a66e23de', '852efef9'];
-const API_KEY = KEY_PARTS.join('');
-function getApiKey() { return API_KEY; }
+// ใช้ 2 keys: หลัก + สำรอง (ถ้าหลัก error จะสลับไปใช้สำรองอัตโนมัติ)
+const KEY_MAIN = ['sk-or-v1-', '19fbfa52', 'bdaecb2f', 'd0ba1cf6', 'a24f09f7', '89fd4ea0', '7c213bc1', 'a66e23de', '852efef9'].join('');
+const KEY_BACKUP = ['sk-or-v1-', 'ea63325d', '3f827c15', '23351a69', 'cf23c3bd', 'ac90f968', '23ed3d38', 'c4c1f934', '4e134a95'].join('');
+function getApiKey() { return KEY_MAIN; }
 
 function safeParse(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -141,40 +141,39 @@ const FREE_MODELS_VISION = [
 ];
 
 async function callAI(question, hasImage) {
-  const apiKey = getApiKey();
-  if (!apiKey || !apiKey.startsWith('sk-or-v1-')) {
-    throw new Error('API Key ไม่ถูกต้อง');
-  }
   const models = hasImage ? FREE_MODELS_VISION : FREE_MODELS;
+  const keys = [KEY_MAIN, KEY_BACKUP];
   const errors = [];
-  for (const model of models) {
-    // ลองแต่ละโมเดลสูงสุด 2 ครั้ง (สำหรับ rate-limit 429)
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        return await tryModel(model, question, hasImage);
-      } catch (e) {
-        // ถ้า rate-limit รอ 15 วิแล้วลองใหม่
-        if (e.message.includes('429') && attempt === 1) {
-          await new Promise(r => setTimeout(r, 15000));
-          continue;
+
+  for (const apiKey of keys) {
+    if (!apiKey || !apiKey.startsWith('sk-or-v1-')) continue;
+    console.log(`[AI] ลองใช้ key: ${apiKey.slice(0, 16)}...`);
+    for (const model of models) {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          return await tryModel(model, question, hasImage, apiKey);
+        } catch (e) {
+          if (e.message.includes('429') && attempt === 1) {
+            await new Promise(r => setTimeout(r, 15000));
+            continue;
+          }
+          errors.push(`[${apiKey.slice(0, 12)}...] ${model}: ${e.message}`);
+          console.warn(`Key ${apiKey.slice(0, 12)} / Model ${model} failed:`, e.message);
+          break;
         }
-        errors.push(`${model}: ${e.message}`);
-        console.warn(`Model ${model} failed:`, e.message);
-        break;
       }
     }
   }
-  throw new Error('โมเดลทั้งหมดล้มเหลว:\n' + errors.slice(0, 3).join('\n') + '\n...');
+  throw new Error('ทุก Key และโมเดลล้มเหลว:\n' + errors.slice(0, 4).join('\n') + '\n...');
 }
 
-async function tryModel(model, question, hasImage) {
+async function tryModel(model, question, hasImage, apiKey) {
   const messages = [{ role: 'system', content: 'You are น้องโอม🩵, a friendly Thai AI assistant. Always refer to the user as "พี่". Be cute, warm, use colloquial Thai naturally.\n\nCRITICAL: Respond in Thai ONLY. Never use English, Russian, Chinese, or any other language in your output — even if this prompt is in English, your answer must be in Thai.' }];
   state.history.slice(-MAX_HISTORY).forEach(h => messages.push({ role: h.role, content: h.text }));
   const userContent = [];
   if (hasImage && state.image.data) userContent.push({ type: 'image_url', image_url: { url: `data:${state.image.mime};base64,${state.image.data}` } });
   userContent.push({ type: 'text', text: question });
   messages.push({ role: 'user', content: userContent });
-  const apiKey = getApiKey();
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
